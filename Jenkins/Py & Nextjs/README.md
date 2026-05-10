@@ -1,4 +1,3 @@
-This README.md provides a professional overview of your full-stack project and explains how the Jenkins pipeline orchestrates the deployment on your AWS EC2 instance.
 ------------------------------
 ## Full-Stack Python & Next.js CI/CD Pipeline
 This repository contains a decoupled full-stack application featuring a FastAPI/Python backend and a Next.js frontend. It includes a fully automated CI/CD pipeline defined in a Jenkinsfile to handle environment setup, dependency management, and service orchestration using Docker.

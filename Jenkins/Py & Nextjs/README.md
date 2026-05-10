@@ -1,65 +1,72 @@
+This README is designed for a universal setup. It explains how to run the project using the Jenkins pipeline (for automation) or Docker Compose (for local/manual runs on any machine).
 ------------------------------
-## Full-Stack Python & Next.js CI/CD Pipeline
-This repository contains a decoupled full-stack application featuring a FastAPI/Python backend and a Next.js frontend. It includes a fully automated CI/CD pipeline defined in a Jenkinsfile to handle environment setup, dependency management, and service orchestration using Docker.
-## 🚀 Architecture Overview
+## 🌍 Universal Full-Stack Pipeline (Python & Next.js)
+This project is a portable, containerized full-stack application. It is designed to run anywhere—from your local laptop to an AWS EC2 instance or any cloud provider—using Docker and Jenkins.
+## 🏗️ Project Architecture
 
-* Backend: Python 3 (FastAPI/Uvicorn) with SQLAlchemy.
-* Frontend: Next.js (Node.js).
-* Database: PostgreSQL (Ephemeral Docker container).
-* CI/CD: Jenkins Pipeline running inside an Ubuntu 24.04 Docker Agent on AWS EC2.
+* Backend: FastAPI (Python) located in /backend
+* Frontend: Next.js (React) located in /frontend
+* Database: PostgreSQL (Containerized)
+* CI/CD: Jenkinsfile (Docker-outside-of-Docker approach)
 
 ------------------------------
-## 📁 Project Structure
+## 🚀 How to Run Anywhere## Option A: Automated (Jenkins Pipeline)
+Use the included Jenkinsfile to automate the build. The pipeline uses a Docker-in-Docker strategy, meaning it spins up its own Ubuntu environment so you don't have to install Python or Node on your host machine.
+Requirements:
+
+   1. Docker installed on the host.
+   2. Jenkins installed with the "Docker Pipeline" plugin.
+   3. The jenkins user added to the docker group: sudo usermod -aG docker jenkins.
+
+The Pipeline will:
+
+   1. Pull an ubuntu:24.04 image.
+   2. Install all necessary runtimes (Python/Node).
+   3. Spin up a PostgreSQL container.
+   4. Launch the Backend (:8000) and Frontend (:3000) in parallel.
+
+------------------------------
+## Option B: Local/Manual (Docker Compose)
+For quick development or running on a machine without Jenkins, use Docker Compose.
+
+   1. Navigate to the root directory.
+   2. Run the following command:
+   
+   docker-compose up --build
+   
+   3. Access your apps:
+   * Frontend: http://localhost:3000
+      * Backend API: http://localhost:8000
+   
+------------------------------
+## 📂 Directory Structure
 
 .
 ├── backend/
-│   ├── main.py            # Entry point for Uvicorn
-│   ├── requirements.txt   # Python dependencies
-│   └── .env               # Database credentials (injected via CI)
+│   ├── main.py            # FastAPI entry point
+│   ├── requirements.txt   # Python libs (SQLAlchemy, Uvicorn, etc.)
+│   └── venv/              # (Created by Pipeline)
 ├── frontend/
 │   ├── package.json       # Node.js dependencies
-│   └── src/               # Next.js source code
-└── Jenkinsfile            # Pipeline definition
+│   └── next.config.js     # Next.js config
+├── Jenkinsfile            # The "Build Anywhere" logic
+└── docker-compose.yml     # The "Run Anywhere" logic
 
 ------------------------------
-## 🛠 CI/CD Pipeline Stages
-The pipeline is designed to be idempotent and isolated, running entirely within a Docker container to ensure environment consistency.
-
-   1. System Preparation: Installs Python, Node.js, and Docker CLI inside the Ubuntu agent.
-   2. Parallel Installation:
-   * Backend: Creates a venv, upgrades pip, and installs requirements.txt.
-      * Frontend: Runs npm install.
-   3. Infrastructure & Launch:
-   * Spins up a PostgreSQL container on port 5432.
-      * Starts the Uvicorn server (:8000).
-      * Starts the Next.js dev server (:3000).
-   4. Post-Build Cleanup: Automatically stops and removes the PostgreSQL container to free up EC2 resources.
-
-------------------------------
-## ⚙️ Setup & Deployment## 1. AWS Security Group Configuration
-Ensure your EC2 instance allows inbound traffic on the following ports:
-
-* 8080 (Jenkins UI)
-* 8000 (Backend API)
-* 3000 (Frontend Web)
-
-## 2. Database Connection
-The backend expects a DB_URL environment variable. In this pipeline, it connects to:
+## 🛠️ Environment Configuration
+The backend connects to the database using the DB_URL environment variable.
+Default Connection String:
 postgresql://postgres:pass@localhost:5432/postgres
-## 3. Running the Pipeline
-
-   1. Connect your GitHub repository to [Jenkins](https://www.jenkins.io/doc/book/pipeline/syntax/).
-   2. Ensure the jenkins user on your EC2 has permission to access the Docker socket:
-   
-   sudo usermod -aG docker jenkins
-   
-   3. Click Build Now in the Jenkins UI.
-
+Note: If running on a cloud server (like AWS), ensure your Security Group or Firewall has ports 3000 and 8000 open.
 ------------------------------
-## 📝 Logs & Debugging
-Since the services run in the background via nohup, check the following files within the Jenkins workspace for troubleshooting:
+## 📝 Debugging
+If a service fails to start, check the logs generated by the pipeline:
 
 * backend/backend.log
 * frontend/frontend.log
+
+To see real-time container logs:
+
+docker logs pg-db
 
 ------------------------------

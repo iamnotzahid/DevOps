@@ -2,24 +2,26 @@ pipeline {
     agent {
         docker { 
             image 'ubuntu:24.04'
+            // Maps the host docker socket so we can run the DB container regardless of host OS
             args '-u root -v /var/run/docker.sock:/var/run/docker.sock' 
         }
     }
+    environment {
+        // Universal DB config
+        DB_URL = "postgresql://postgres:pass@localhost:5432/postgres"
+    }
     stages {
-        stage('Install System Tools') {
+        stage('Environment Audit') {
             steps {
-                sh '''
-                    apt-get update && apt-get install -y \
-                    python3 python3-venv python3-pip \
-                    nodejs npm docker.io curl
-                '''
+                // This checks what is available on the "anywhere" host
+                sh 'python3 --version && node -v && npm -v'
             }
         }
-        stage('Setup & Install') {
+        stage('Install Dependencies') {
             parallel {
-                stage('Backend (Python)') {
+                stage('Backend') {
                     steps {
-                        dir('backend') { // Enter the backend folder
+                        dir('backend') {
                             sh '''
                                 python3 -m venv venv
                                 . venv/bin/activate
@@ -28,28 +30,30 @@ pipeline {
                         }
                     }
                 }
-                stage('Frontend (Next.js)') {
+                stage('Frontend') {
                     steps {
-                        dir('frontend') { // Enter the frontend folder
+                        dir('frontend') {
                             sh 'npm install'
                         }
                     }
                 }
             }
         }
-        stage('Database & Launch') {
+        stage('Service Orchestration') {
             steps {
-                // 1. Start Postgres
+                // Kill old containers if they exist to avoid "name already in use" errors on different hosts
+                sh 'docker rm -f pg-db || true'
+                
+                // Spin up Database
                 sh 'docker run --name pg-db -e POSTGRES_PASSWORD=pass -p 5432:5432 -d postgres'
                 
-                // 2. Run Backend & Frontend in parallel
                 parallel(
-                    "Uvicorn": {
+                    "Backend": {
                         dir('backend') {
                             sh '. venv/bin/activate && nohup uvicorn main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &'
                         }
                     },
-                    "NextJS": {
+                    "Frontend": {
                         dir('frontend') {
                             sh 'nohup npm run dev -- -p 3000 > frontend.log 2>&1 &'
                         }
@@ -60,7 +64,8 @@ pipeline {
     }
     post {
         always {
-            sh 'docker stop pg-db && docker rm pg-db || true'
+            echo "Deployment cleanup..."
+            // sh 'docker stop pg-db && docker rm pg-db'
         }
     }
 }
